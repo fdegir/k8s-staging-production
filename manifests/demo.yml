@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: staging2prod-demo-config
+  namespace: default
+data:
+  NEW_FEATURE: "true"
+
+---
+
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: staging2prod-demo
+  namespace: default
+  labels:
+    source: demo
+    stack: frontend
+    app: staging2prod
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      source: demo
+      app: staging2prod
+  template:
+    metadata:
+      labels:
+        source: demo
+        app: staging2prod
+    spec:
+      containers:
+      - name: primary
+        image: index.docker.io/fdegir/k8s-staging2production-manual-demo
+        ports:
+        - containerPort: 8000
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8000
+        envFrom:
+        - configMapRef:
+            name: staging2prod-demo-config
+
+---
+
+kind: Service
+apiVersion: v1
+metadata:
+  name: staging2prod-demo
+  namespace: default
+spec:
+  selector:
+    source: demo
+    app: staging2prod
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8000
